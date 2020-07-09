@@ -1,8 +1,10 @@
+import os
+import pickle
+from argparse import ArgumentParser
 from os.path import join
 
 import numpy as np
 import scipy.sparse as sp
-import torch
 
 
 def load_data(path="./data/cora/", dataset="cora"):
@@ -32,13 +34,13 @@ def load_data(path="./data/cora/", dataset="cora"):
     idx_val = range(200, 500)
     idx_test = range(500, 1500)
 
-    adj = torch.FloatTensor(np.array(adj.todense()))
-    features = torch.FloatTensor(np.array(features.todense()))
-    labels = torch.LongTensor(np.where(labels)[1])
+    adj = np.array(adj.todense())
+    features = np.array(features.todense())
+    labels = np.where(labels)[1]
 
-    idx_train = torch.LongTensor(idx_train)
-    idx_val = torch.LongTensor(idx_val)
-    idx_test = torch.LongTensor(idx_test)
+    idx_train = idx_train
+    idx_val = idx_val
+    idx_test = idx_test
 
     return adj, features, labels, idx_train, idx_val, idx_test
 
@@ -67,3 +69,23 @@ def encode_onehot(labels):
     classes_dict = {c: np.identity(len(classes))[i, :] for i, c in enumerate(classes)}
     labels_onehot = np.array(list(map(classes_dict.get, labels)), dtype=np.int32)
     return labels_onehot
+
+
+def main():
+    ap = ArgumentParser()
+    ap.add_argument('--input_dir', type=str, default='../data/cora/',
+                    help='Path to the directory containing the cora files')
+    ap.add_argument('--output_dir', type=str, default='../data/processed/cora/',
+                    help='Output path')
+    args = ap.parse_args()
+
+    cora_data = load_data(args.input_dir)
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    out_file_path = join(args.output_dir, 'cora.pkl')
+    with open(out_file_path, 'wb') as f:
+        pickle.dump(cora_data, f)
+
+
+if __name__ == '__main__':
+    main()

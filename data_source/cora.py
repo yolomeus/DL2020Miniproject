@@ -1,22 +1,20 @@
-import gzip
+import pickle
 
-import numpy as np
 import torch
 from hydra.utils import to_absolute_path
 from torch.utils.data import Dataset
-
-from preprocessing.load_cora import load_data
 
 
 class Cora(Dataset):
     """Dataset for loading cora.
     """
 
-    def __init__(self, data_dir, mode='train'):
-        data_dir = to_absolute_path(data_dir)
-        adj, features, labels, idx_train, idx_val, idx_test = load_data(data_dir)
+    def __init__(self, data_path, mode='train'):
+        data_path = to_absolute_path(data_path)
+        with open(data_path, 'rb') as fp:
+            adj, features, labels, idx_train, idx_val, idx_test = map(torch.as_tensor, pickle.load(fp))
 
-        self.adj = adj
+        self.adj = adj.float()
         self.features = features
         self.labels = labels
 
@@ -31,8 +29,10 @@ class Cora(Dataset):
             idx = self.idx_train
         elif self.mode == 'val':
             idx = self.idx_val
-        else:
+        elif self.mode == 'test':
             idx = self.idx_test
+        else:
+            raise NotImplementedError()
 
         return (self.features, self.adj, idx), self.labels[idx]
 
