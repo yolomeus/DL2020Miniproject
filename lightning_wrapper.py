@@ -78,24 +78,45 @@ class LightningModel(LightningModule):
 
         return {'log': logs}
 
+    @staticmethod
+    def _identity(x):
+        return x
+
     def train_dataloader(self):
         train_ds = instantiate(self.dataset_conf.train)
+
+        _collate_fn = self._identity
+        if hasattr(train_ds, 'collate_fn'):
+            _collate_fn = train_ds.collate_fn
+
         train_dl = DataLoader(train_ds,
                               self.train_conf.batch_size,
-                              shuffle=True,
+                              shuffle=False,
+                              collate_fn=_collate_fn,
                               num_workers=self.hparams['num_workers'])
         return train_dl
 
     def val_dataloader(self):
         val_ds = instantiate(self.dataset_conf.validation)
+
+        _collate_fn = self._identity
+        if hasattr(val_ds, 'collate_fn'):
+            _collate_fn = val_ds.collate_fn
+
         val_dl = DataLoader(val_ds,
                             self.test_conf.batch_size,
+                            collate_fn=_collate_fn,
                             num_workers=self.hparams['num_workers'])
         return val_dl
 
     def test_dataloader(self):
         test_conf = self.test_conf
         test_ds = instantiate(self.dataset_conf.test)
+
+        _collate_fn = self._identity
+        if hasattr(test_ds, 'collate_fn'):
+            _collate_fn = test_ds.collate_fn
+
         test_dl = DataLoader(test_ds,
                              test_conf.batch_size,
                              num_workers=self.hparams['num_workers'])
