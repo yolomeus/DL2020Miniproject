@@ -14,7 +14,7 @@ class Cora(Dataset):
         with open(data_path, 'rb') as fp:
             adj, features, labels, idx_train, idx_val, idx_test = map(torch.as_tensor, pickle.load(fp))
 
-        self.adj = adj.float()
+        self.adj = adj.to(torch.float32)
         self.features = features
         self.labels = labels
 
