@@ -19,5 +19,8 @@ class MLP(Module):
                                      Linear(h_dim, out_dim))
 
     def forward(self, inputs):
-        x = self.classifier(inputs)
+        nodes, adj, idx = inputs
+        # just sum all neighbouring nodes for node representation
+        x = adj @ nodes
+        x = self.classifier(x)[idx]
         return x
