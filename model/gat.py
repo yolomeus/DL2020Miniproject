@@ -13,14 +13,12 @@ class GraphAttentionNetwork(nn.Module):
             [GraphAttentionLayer(n_feat,
                                  n_hid,
                                  dropout=dropout,
-                                 alpha=alpha,
-                                 concat=True) for _ in range(n_heads)])
+                                 alpha=alpha) for _ in range(n_heads)])
 
         self.out_att = GraphAttentionLayer(n_hid * n_heads,
                                            n_class,
                                            dropout=dropout,
-                                           alpha=alpha,
-                                           concat=False)
+                                           alpha=alpha)
 
         self.dropout = Dropout(dropout)
         self.elu = ELU()
@@ -29,6 +27,7 @@ class GraphAttentionNetwork(nn.Module):
         nodes, adj, idx = inputs
         x = self.dropout(nodes)
         x = torch.cat([att(x, adj) for att in self.attentions], dim=1)
+        x = self.elu(x)
         x = self.dropout(x)
         x = self.out_att(x, adj)
         return x[idx]
@@ -39,13 +38,12 @@ class GraphAttentionLayer(nn.Module):
     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
     """
 
-    def __init__(self, in_features, out_features, dropout, alpha, concat=True):
+    def __init__(self, in_features, out_features, dropout, alpha):
         super(GraphAttentionLayer, self).__init__()
         self.dropout = Dropout(dropout)
         self.in_features = in_features
         self.out_features = out_features
         self.alpha = alpha
-        self.concat = concat
 
         self.W = Parameter(torch.zeros(size=(in_features, out_features)))
         xavier_uniform_(self.W.data, gain=1.414)
@@ -53,7 +51,6 @@ class GraphAttentionLayer(nn.Module):
         xavier_uniform_(self.a.data, gain=1.414)
 
         self.leaky_relu = LeakyReLU(self.alpha)
-        self.elu = ELU()
 
     def forward(self, inputs, adj):
         h = torch.mm(inputs, self.W)
@@ -68,7 +65,4 @@ class GraphAttentionLayer(nn.Module):
         attention = self.dropout(attention)
         h_prime = torch.matmul(attention, h)
 
-        if self.concat:
-            return self.elu(h_prime)
-        else:
-            return h_prime
+        return h_prime
