@@ -1,7 +1,7 @@
 import hydra
 from omegaconf import DictConfig
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 from lightning_wrapper import LightningModel
 
@@ -24,6 +24,11 @@ def train(cfg: DictConfig):
                       deterministic=True,
                       checkpoint_callback=checkpoint_callback)
     trainer.fit(model)
+
+    # test best
+    best = list(trainer.checkpoint_callback.best_k_models.keys())[-1]
+    trainer.model.load_from_checkpoint(best)
+    trainer.test()
 
 
 if __name__ == '__main__':
