@@ -119,6 +119,7 @@ class LightningModel(LightningModule):
 
         test_dl = DataLoader(test_ds,
                              test_conf.batch_size,
+                             collate_fn=_collate_fn,
                              num_workers=self.hparams['num_workers'])
         return test_dl
 
