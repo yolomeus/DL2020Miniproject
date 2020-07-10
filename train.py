@@ -18,11 +18,15 @@ def train(cfg: DictConfig):
     checkpoint_callback = ModelCheckpoint(save_top_k=train_cfg.save_ckpts,
                                           monitor=train_cfg.monitor,
                                           mode=train_cfg.mode)
+    early_stop_callback = EarlyStopping(monitor=train_cfg.monitor,
+                                        patience=train_cfg.patience,
+                                        mode=train_cfg.mode)
 
     trainer = Trainer(max_epochs=train_cfg.epochs,
                       gpus=cfg.gpus,
                       deterministic=True,
-                      checkpoint_callback=checkpoint_callback)
+                      checkpoint_callback=checkpoint_callback,
+                      early_stop_callback=early_stop_callback)
     trainer.fit(model)
 
     # test best
