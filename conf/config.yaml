@@ -1,5 +1,5 @@
 defaults:
-  - model: mlp
+  - model: gant
   - dataset: cora
 
 gpus: 1
@@ -7,15 +7,16 @@ num_workers: 0
 random_seed: 72
 
 training:
-  epochs: 1000
+  epochs: 10000
   batch_size: 1
   # checkpointing
   save_ckpts: 10
   monitor: val_loss
   mode: min
+  patience: 200
 
 testing:
-  checkpoint: 'outputs/2020-07-09/20-03-09/lightning_logs/version_0/checkpoints/epoch=141.ckpt'
+  checkpoint: 'outputs/2020-07-09/20-19-27/lightning_logs/version_0/checkpoints/epoch=141.ckpt'
   batch_size: 1
   epochs: 1
 
@@ -26,6 +27,7 @@ optimizer:
   class: torch.optim.Adam
   params:
     lr: 5e-3
+    weight_decay: 5e-4
 
 metrics:
   - accuracy:

@@ -1,0 +1,10 @@
+model:
+  class: model.gat.GraphAttentionNeighbourNetwork
+  params:
+    n_feat: 1433
+    n_hid: 16
+    n_class: 7
+    dropout: 0.5
+    alpha: 0.2
+    n_heads: 4
+    n_orders: 4

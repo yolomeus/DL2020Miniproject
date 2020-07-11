@@ -4,6 +4,53 @@ from torch.nn import Dropout, LeakyReLU, Parameter, ELU, ModuleList
 from torch.nn.init import xavier_uniform_
 
 
+class GraphAttentionNeighbourNetwork(nn.Module):
+    def __init__(self, n_feat, n_hid, n_class, dropout, alpha, n_heads, n_orders):
+        """Dense version of GAT."""
+
+        super().__init__()
+
+        assert n_heads >= n_orders
+        self.n_orders = n_orders
+        self.n_heads = n_heads
+
+        self.attentions = ModuleList(
+            [GraphAttentionLayer(n_feat,
+                                 n_hid,
+                                 dropout=dropout,
+                                 alpha=alpha) for _ in range(n_heads)])
+
+        self.out_att = GraphAttentionLayer(n_hid * n_heads,
+                                           n_class,
+                                           dropout=dropout,
+                                           alpha=alpha)
+
+        self.dropout = Dropout(dropout)
+        self.elu = ELU()
+
+    def forward(self, inputs):
+        nodes, adj, idx = inputs
+        # compute n-th order adjacency matrices
+        adj_matrices = [adj]
+        cur_adj = adj
+        for _ in range(self.n_orders):
+            cur_adj = (cur_adj @ cur_adj).softmax(dim=1)
+            adj_matrices.append(cur_adj)
+
+        x = self.dropout(nodes)
+        att_outs = []
+        for i in range(self.n_heads):
+            cur_adj = adj_matrices[i % (self.n_orders + 1)]
+            att_out = self.attentions[i](x, cur_adj)
+            att_outs.append(att_out)
+
+        x = torch.cat(att_outs, dim=1)
+        x = self.elu(x)
+        x = self.dropout(x)
+        x = self.out_att(x, adj)
+        return x[idx]
+
+
 class GraphAttentionNetwork(nn.Module):
     def __init__(self, n_feat, n_hid, n_class, dropout, alpha, n_heads):
         """Dense version of GAT."""
