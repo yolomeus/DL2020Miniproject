@@ -26,7 +26,8 @@ def train(cfg: DictConfig):
                       gpus=cfg.gpus,
                       deterministic=True,
                       checkpoint_callback=checkpoint_callback,
-                      early_stop_callback=early_stop_callback)
+                      early_stop_callback=early_stop_callback,
+                      accumulate_grad_batches=train_cfg.accumulate_grad_batches)
     trainer.fit(model)
 
     # test best

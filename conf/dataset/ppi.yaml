@@ -1,0 +1,17 @@
+dataset:
+  data_path: data/processed/ppi/
+
+  train:
+    class: data_source.ppi.PPI
+    params:
+      data_path: ${dataset.data_path}/ppi_train.pkl
+
+  validation:
+    class: data_source.ppi.PPI
+    params:
+      data_path: ${dataset.data_path}/ppi_val.pkl
+
+  test:
+    class: data_source.ppi.PPI
+    params:
+      data_path: $${dataset.data_path}/ppi_test.pkl

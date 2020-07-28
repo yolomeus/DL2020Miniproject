@@ -1,27 +1,28 @@
 defaults:
-  - model: gant
-  - dataset: cora
+  - model: gat
+  - dataset: ppi
 
-gpus: 1
+gpus: 0
 num_workers: 0
-random_seed: 72
+random_seed: 1594753342
 
 training:
   epochs: 10000
-  batch_size: 1
+  batch_size: 2
   # checkpointing
   save_ckpts: 10
   monitor: val_loss
   mode: min
   patience: 200
+  accumulate_grad_batches: 1
 
 testing:
   checkpoint: 'outputs/2020-07-09/20-19-27/lightning_logs/version_0/checkpoints/epoch=141.ckpt'
-  batch_size: 1
+  batch_size: 2
   epochs: 1
 
 loss:
-  class: torch.nn.CrossEntropyLoss
+  class: losses.MaskedBCEWithLogitsLoss
 
 optimizer:
   class: torch.optim.Adam
@@ -30,8 +31,10 @@ optimizer:
     weight_decay: 5e-4
 
 metrics:
-  - accuracy:
-    class: metrics.Accuracy
+  - loss:
+    class: losses.MaskedBCEWithLogitsLoss
 
-  - f1:
-    class: metrics.F1Score
+#  - accuracy:
+#    class: metrics.Accuracy
+#  - f1:
+#    class: metrics.F1Score

@@ -71,13 +71,13 @@ class GraphAttentionNetwork(nn.Module):
         self.elu = ELU()
 
     def forward(self, inputs):
-        nodes, adj, idx = inputs
+        nodes, adj, mask = inputs
         x = self.dropout(nodes)
-        x = torch.cat([att(x, adj) for att in self.attentions], dim=1)
+        x = torch.cat([att(x, adj) for att in self.attentions], dim=-1)
         x = self.elu(x)
         x = self.dropout(x)
         x = self.out_att(x, adj)
-        return x[idx]
+        return {'y_pred': x, 'mask': mask}
 
 
 class GraphAttentionLayer(nn.Module):
@@ -100,16 +100,20 @@ class GraphAttentionLayer(nn.Module):
         self.leaky_relu = LeakyReLU(self.alpha)
 
     def forward(self, inputs, adj):
-        h = torch.mm(inputs, self.W)
-        n = h.size()[0]
+        h_primes = []
+        for x, a in zip(inputs, adj):
+            h = torch.mm(x, self.W)
+            n = h.size()[0]
 
-        a_input = torch.cat([h.repeat(1, n).view(n * n, -1), h.repeat(n, 1)], dim=1).view(n, -1, 2 * self.out_features)
-        e = self.leaky_relu(torch.matmul(a_input, self.a).squeeze(2))
+            a_input = torch.cat([h.repeat(1, n).view(n * n, -1), h.repeat(n, 1)], dim=1).view(n, -1,
+                                                                                              2 * self.out_features)
+            e = self.leaky_relu(torch.matmul(a_input, self.a).squeeze(2))
 
-        zero_vec = -9e15 * torch.ones_like(e)
-        attention = torch.where(adj > 0, e, zero_vec)
-        attention = torch.softmax(attention, dim=1)
-        attention = self.dropout(attention)
-        h_prime = torch.matmul(attention, h)
+            zero_vec = -9e15 * torch.ones_like(e)
+            attention = torch.where(a > 0, e, zero_vec)
+            attention = torch.softmax(attention, dim=1)
+            attention = self.dropout(attention)
+            h_prime = torch.matmul(attention, h)
+            h_primes.append(h_prime)
 
-        return h_prime
+        return torch.stack(h_primes)
