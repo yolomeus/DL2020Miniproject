@@ -31,8 +31,8 @@ def train(cfg: DictConfig):
 
     # test best
     best = list(trainer.checkpoint_callback.best_k_models.keys())[-1]
-    trainer.model.load_from_checkpoint(best)
-    trainer.test()
+    best_model = model.load_from_checkpoint(best)
+    trainer.test(best_model)
 
 
 if __name__ == '__main__':
