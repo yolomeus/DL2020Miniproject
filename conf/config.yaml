@@ -4,7 +4,7 @@ defaults:
 
 gpus: 1
 num_workers: 0
-random_seed: 72
+random_seed: 1590258941
 
 training:
   epochs: 10000
@@ -13,7 +13,7 @@ training:
   save_ckpts: 10
   monitor: val_loss
   mode: min
-  patience: 200
+  patience: 100
 
 testing:
   checkpoint: 'outputs/2020-07-09/20-19-27/lightning_logs/version_0/checkpoints/epoch=141.ckpt'
@@ -35,3 +35,10 @@ metrics:
 
   - f1:
     class: metrics.F1Score
+
+# set logging paths
+hydra:
+  run:
+    dir: outputs/${model.class}/${now:%Y-%m-%d}/${now:%H-%M-%S}/
+  sweep:
+    dir: outputs/${model.class}/${now:%Y-%m-%d}/${now:%H-%M-%S}/

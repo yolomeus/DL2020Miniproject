@@ -1,11 +1,11 @@
 import torch
 from torch import nn
-from torch.nn import Dropout, LeakyReLU, Parameter, ELU, ModuleList
+from torch.nn import Dropout, LeakyReLU, Parameter, ELU, ModuleList, Linear
 from torch.nn.init import xavier_uniform_
 
 
 class GraphAttentionNeighbourNetwork(nn.Module):
-    def __init__(self, n_feat, n_hid, n_class, dropout, alpha, n_heads, n_orders):
+    def __init__(self, n_feat, n_hid, n_class, dropout, alpha, n_heads, n_orders, n_nodes, method):
         """Dense version of GAT."""
 
         super().__init__()
@@ -13,6 +13,8 @@ class GraphAttentionNeighbourNetwork(nn.Module):
         assert n_heads >= n_orders
         self.n_orders = n_orders
         self.n_heads = n_heads
+        self.method = method
+        assert method in ['distributed', 'single']
 
         self.attentions = ModuleList(
             [GraphAttentionLayer(n_feat,
@@ -27,22 +29,33 @@ class GraphAttentionNeighbourNetwork(nn.Module):
 
         self.dropout = Dropout(dropout)
         self.elu = ELU()
+        self.lin = Linear(n_nodes, n_nodes)
 
     def forward(self, inputs):
         nodes, adj, idx = inputs
-        # compute n-th order adjacency matrices
-        adj_matrices = [adj]
-        cur_adj = adj
-        for _ in range(self.n_orders):
-            cur_adj = (cur_adj @ cur_adj).softmax(dim=1)
-            adj_matrices.append(cur_adj)
-
         x = self.dropout(nodes)
+
         att_outs = []
-        for i in range(self.n_heads):
-            cur_adj = adj_matrices[i % (self.n_orders + 1)]
-            att_out = self.attentions[i](x, cur_adj)
-            att_outs.append(att_out)
+        if self.method == 'distributed':
+            # individual heads attend over different order neighbourhoods
+            adj_matrices = [adj]
+            cur_adj = adj
+            for _ in range(self.n_orders):
+                cur_adj = cur_adj @ cur_adj
+                adj_matrices.append(self.elu(self.lin(cur_adj)))
+
+            for i in range(self.n_heads):
+                cur_adj = adj_matrices[i % (self.n_orders + 1)]
+                att_out = self.attentions[i](x, cur_adj)
+                att_outs.append(att_out)
+
+        elif self.method == 'single':
+            # compute n-th order adjacency matrices
+            for _ in range(self.n_orders):
+                adj = adj @ adj
+            # every head attends over the same neighbourhood
+            for head in self.attentions:
+                att_outs.append(head(x, adj))
 
         x = torch.cat(att_outs, dim=1)
         x = self.elu(x)
