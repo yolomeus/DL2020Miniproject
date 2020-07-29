@@ -5,9 +5,10 @@ from torch.nn.init import xavier_uniform_
 
 
 class GraphAttentionNeighbourNetwork(nn.Module):
+    """
+    GAT attending over higher order neighbours.
+    """
     def __init__(self, n_feat, n_hid, n_class, dropout, alpha, n_heads, n_orders, n_nodes, method):
-        """Dense version of GAT."""
-
         super().__init__()
 
         assert n_heads >= n_orders
@@ -42,7 +43,8 @@ class GraphAttentionNeighbourNetwork(nn.Module):
             cur_adj = adj
             for _ in range(self.n_orders):
                 cur_adj = cur_adj @ cur_adj
-                adj_matrices.append(self.elu(self.lin(cur_adj)))
+                learned_adj = self.elu(self.lin(cur_adj))
+                adj_matrices.append(learned_adj)
 
             for i in range(self.n_heads):
                 cur_adj = adj_matrices[i % (self.n_orders + 1)]
@@ -56,6 +58,8 @@ class GraphAttentionNeighbourNetwork(nn.Module):
             # every head attends over the same neighbourhood
             for head in self.attentions:
                 att_outs.append(head(x, adj))
+        else:
+            raise NotImplementedError()
 
         x = torch.cat(att_outs, dim=1)
         x = self.elu(x)
