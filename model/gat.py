@@ -41,32 +41,33 @@ class GraphAttentionNeighbourNetwork(nn.Module):
             nodes = nodes[idx]
             adj = adj[idx]
             adj = adj[:, idx]
-            # adj[adj != 0] = 1
+
+        adj[adj != 0] = 1
 
         x = self.dropout(nodes)
         att_outs = []
         if self.method == 'distributed':
             # individual heads attend over different order neighbourhoods
             adj_matrices = [normalize(adj, p=1)]
-            cur_adj = adj
+            nth_adj = adj
             for _ in range(self.n_orders):
-                cur_adj = cur_adj @ adj
-                adj_matrices.append(normalize(cur_adj, p=1))
+                nth_adj = nth_adj @ adj
+                adj_matrices.append(normalize(nth_adj, p=1))
 
             for i in range(self.n_heads):
-                cur_adj = adj_matrices[i % (self.n_orders + 1)]
-                att_out = self.attentions[i](x, cur_adj)
+                nth_adj = adj_matrices[i % (self.n_orders + 1)]
+                att_out = self.attentions[i](x, nth_adj)
                 att_outs.append(att_out)
 
         elif self.method == 'single':
             # compute n-th order reachability matrix
-            n_adj = adj
-            for k in range(self.n_orders):
-                n_adj = n_adj @ adj + n_adj
-
+            nth_adj = adj
+            for _ in range(self.n_orders):
+                nth_adj = nth_adj @ adj + nth_adj
+            nth_adj = normalize(nth_adj, p=1)
             # every head attends over the same neighbourhood
             for head in self.attentions:
-                att_outs.append(head(x, n_adj))
+                att_outs.append(head(x, nth_adj))
         else:
             raise NotImplementedError()
 
