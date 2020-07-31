@@ -10,13 +10,13 @@ training:
   epochs: 10000
   batch_size: 1
   # checkpointing
-  save_ckpts: 10
+  save_ckpts: 5
   monitor: val_loss
   mode: min
   patience: 100
 
 testing:
-  checkpoint: 'outputs/2020-07-09/20-19-27/lightning_logs/version_0/checkpoints/epoch=141.ckpt'
+  checkpoint: 'outputs/model.gat.GraphAttentionNeighbourNetwork/2020-07-31/01-29-50/lightning_logs/version_0/checkpoints/epoch=267.ckpt'
   batch_size: 1
   epochs: 1
 
@@ -39,6 +39,6 @@ metrics:
 # set logging paths
 hydra:
   run:
-    dir: outputs/${model.class}/${now:%Y-%m-%d}/${now:%H-%M-%S}/
+    dir: outputs/${model.class}/labo/${now:%Y-%m-%d}/${now:%H-%M-%S}/
   sweep:
     dir: outputs/${model.class}/${now:%Y-%m-%d}/${now:%H-%M-%S}/

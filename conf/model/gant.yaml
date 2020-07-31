@@ -9,4 +9,5 @@ model:
     n_heads: 8
     n_orders: 2
     n_nodes: 2708
-    method: distributed
+    method: single
+    graph_convolve: true

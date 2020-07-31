@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import Dropout, LeakyReLU, Parameter, ELU, ModuleList, Linear
+from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
 
 
@@ -8,7 +9,8 @@ class GraphAttentionNeighbourNetwork(nn.Module):
     """
     GAT attending over higher order neighbours.
     """
-    def __init__(self, n_feat, n_hid, n_class, dropout, alpha, n_heads, n_orders, n_nodes, method):
+
+    def __init__(self, n_feat, n_hid, n_class, dropout, alpha, n_heads, n_orders, n_nodes, method, graph_convolve):
         super().__init__()
 
         assert n_heads >= n_orders
@@ -21,30 +23,35 @@ class GraphAttentionNeighbourNetwork(nn.Module):
             [GraphAttentionLayer(n_feat,
                                  n_hid,
                                  dropout=dropout,
-                                 alpha=alpha) for _ in range(n_heads)])
+                                 alpha=alpha,
+                                 graph_convolve=graph_convolve) for _ in range(n_heads)])
 
         self.out_att = GraphAttentionLayer(n_hid * n_heads,
                                            n_class,
                                            dropout=dropout,
-                                           alpha=alpha)
+                                           alpha=alpha,
+                                           graph_convolve=graph_convolve)
 
         self.dropout = Dropout(dropout)
         self.elu = ELU()
-        self.lin = Linear(n_nodes, n_nodes)
 
     def forward(self, inputs):
         nodes, adj, idx = inputs
-        x = self.dropout(nodes)
+        if self.training:
+            nodes = nodes[idx]
+            adj = adj[idx]
+            adj = adj[:, idx]
+            # adj[adj != 0] = 1
 
+        x = self.dropout(nodes)
         att_outs = []
         if self.method == 'distributed':
             # individual heads attend over different order neighbourhoods
-            adj_matrices = [adj]
+            adj_matrices = [normalize(adj, p=1)]
             cur_adj = adj
             for _ in range(self.n_orders):
-                cur_adj = cur_adj @ cur_adj
-                learned_adj = self.elu(self.lin(cur_adj))
-                adj_matrices.append(learned_adj)
+                cur_adj = cur_adj @ adj
+                adj_matrices.append(normalize(cur_adj, p=1))
 
             for i in range(self.n_heads):
                 cur_adj = adj_matrices[i % (self.n_orders + 1)]
@@ -52,12 +59,14 @@ class GraphAttentionNeighbourNetwork(nn.Module):
                 att_outs.append(att_out)
 
         elif self.method == 'single':
-            # compute n-th order adjacency matrices
-            for _ in range(self.n_orders):
-                adj = adj @ adj
+            # compute n-th order reachability matrix
+            n_adj = adj
+            for k in range(self.n_orders):
+                n_adj = n_adj @ adj + n_adj
+
             # every head attends over the same neighbourhood
             for head in self.attentions:
-                att_outs.append(head(x, adj))
+                att_outs.append(head(x, n_adj))
         else:
             raise NotImplementedError()
 
@@ -65,7 +74,9 @@ class GraphAttentionNeighbourNetwork(nn.Module):
         x = self.elu(x)
         x = self.dropout(x)
         x = self.out_att(x, adj)
-        return x[idx]
+
+        # only return test instances when testing
+        return x if self.training else x[idx]
 
 
 class GraphAttentionNetwork(nn.Module):
@@ -77,24 +88,34 @@ class GraphAttentionNetwork(nn.Module):
             [GraphAttentionLayer(n_feat,
                                  n_hid,
                                  dropout=dropout,
-                                 alpha=alpha) for _ in range(n_heads)])
+                                 alpha=alpha,
+                                 graph_convolve=False) for _ in range(n_heads)])
 
         self.out_att = GraphAttentionLayer(n_hid * n_heads,
                                            n_class,
                                            dropout=dropout,
-                                           alpha=alpha)
+                                           alpha=alpha,
+                                           graph_convolve=False)
 
         self.dropout = Dropout(dropout)
         self.elu = ELU()
 
     def forward(self, inputs):
         nodes, adj, idx = inputs
+        # when training, only use the training sub-graph (inductive)
+        if self.training:
+            nodes = nodes[idx]
+            adj = adj[idx]
+            adj = adj[:, idx]
+
         x = self.dropout(nodes)
         x = torch.cat([att(x, adj) for att in self.attentions], dim=1)
         x = self.elu(x)
         x = self.dropout(x)
         x = self.out_att(x, adj)
-        return x[idx]
+
+        # only return test instances when testing
+        return x if self.training else x[idx]
 
 
 class GraphAttentionLayer(nn.Module):
@@ -102,12 +123,18 @@ class GraphAttentionLayer(nn.Module):
     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
     """
 
-    def __init__(self, in_features, out_features, dropout, alpha):
+    def __init__(self, in_features, out_features, dropout, alpha, graph_convolve):
         super(GraphAttentionLayer, self).__init__()
         self.dropout = Dropout(dropout)
         self.in_features = in_features
         self.out_features = out_features
         self.alpha = alpha
+        self.graph_convolve = graph_convolve
+
+        if graph_convolve:
+            self.W_gc = Parameter(torch.zeros(size=(in_features, out_features)))
+            self.b_gc = Parameter(torch.zeros(out_features))
+            xavier_uniform_(self.W_gc.data, gain=1.414)
 
         self.W = Parameter(torch.zeros(size=(in_features, out_features)))
         xavier_uniform_(self.W.data, gain=1.414)
@@ -128,5 +155,10 @@ class GraphAttentionLayer(nn.Module):
         attention = torch.softmax(attention, dim=1)
         attention = self.dropout(attention)
         h_prime = torch.matmul(attention, h)
+
+        if self.graph_convolve:
+            gc = inputs @ self.W_gc
+            gc = adj @ gc + self.b_gc
+            h_prime += gc
 
         return h_prime
