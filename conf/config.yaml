@@ -4,6 +4,8 @@ defaults:
 
 gpus: 1
 num_workers: 0
+# random seeds used for sweeps:
+# 46055786, 412709707, 856211913, 474076048, 285834014
 random_seed: 1590258941
 
 training:
@@ -39,6 +41,6 @@ metrics:
 # set logging paths
 hydra:
   run:
-    dir: outputs/${model.class}/labo/${now:%Y-%m-%d}/${now:%H-%M-%S}/
+    dir: outputs/${model.class}/${now:%Y-%m-%d}/${now:%H-%M-%S}/
   sweep:
     dir: outputs/${model.class}/${now:%Y-%m-%d}/${now:%H-%M-%S}/

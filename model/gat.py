@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from torch.nn import Dropout, LeakyReLU, Parameter, ELU, ModuleList, Linear
+from torch.nn import Dropout, LeakyReLU, Parameter, ELU, ModuleList
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
 
@@ -10,7 +10,7 @@ class GraphAttentionNeighbourNetwork(nn.Module):
     GAT attending over higher order neighbours.
     """
 
-    def __init__(self, n_feat, n_hid, n_class, dropout, alpha, n_heads, n_orders, n_nodes, method, graph_convolve):
+    def __init__(self, n_feat, n_hid, n_class, dropout, alpha, n_heads, n_orders, method, graph_convolve):
         super().__init__()
 
         assert n_heads >= n_orders
